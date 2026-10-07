@@ -1,0 +1,888 @@
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1, viewport-fit=cover"
+  >
+
+  <meta
+    name="apple-mobile-web-app-capable"
+    content="yes"
+  >
+
+  <meta
+    name="apple-mobile-web-app-status-bar-style"
+    content="default"
+  >
+
+  <meta
+    name="apple-mobile-web-app-title"
+    content="Jodifl Alerts"
+  >
+
+  <link rel="manifest" href="./manifest.json">
+
+  <title>Jodifl Alerts</title>
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      min-height: 100%;
+      font-family:
+        -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI",
+        Arial,
+        sans-serif;
+      background: #f5f6f8;
+      color: #222;
+    }
+
+    body {
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+    }
+
+    .card {
+      width: 100%;
+      max-width: 420px;
+      background: #fff;
+      border-radius: 22px;
+      padding: 32px 24px;
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
+      text-align: center;
+    }
+
+    .icon {
+      font-size: 52px;
+      margin-bottom: 12px;
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: 28px;
+      font-weight: 700;
+    }
+
+    .subtitle {
+      margin: 0 0 24px;
+      color: #666;
+      line-height: 1.5;
+      font-size: 16px;
+    }
+
+    input {
+      width: 100%;
+      padding: 15px;
+      border: 1px solid #d1d5db;
+      border-radius: 12px;
+      font-size: 18px;
+      text-align: center;
+      letter-spacing: 2px;
+      outline: none;
+      margin-bottom: 12px;
+      text-transform: uppercase;
+    }
+
+    input:focus {
+      border-color: #111827;
+    }
+
+    button {
+      width: 100%;
+      border: 0;
+      border-radius: 14px;
+      padding: 16px;
+      font-size: 17px;
+      font-weight: 600;
+      cursor: pointer;
+      background: #111827;
+      color: #fff;
+    }
+
+    button:disabled {
+      opacity: 0.6;
+      cursor: default;
+    }
+
+    .status {
+      margin-top: 16px;
+      font-size: 14px;
+      line-height: 1.5;
+      min-height: 22px;
+    }
+
+    .instructions {
+      margin-top: 22px;
+      padding: 16px;
+      border-radius: 14px;
+      background: #f3f4f6;
+      text-align: left;
+      font-size: 14px;
+      line-height: 1.55;
+      color: #555;
+    }
+
+    .instructions strong {
+      color: #222;
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    .success {
+      color: #166534;
+    }
+
+    .error {
+      color: #b91c1c;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="card">
+
+    <div class="icon">🔔</div>
+
+    <h1>Jodifl Alerts</h1>
+
+    <p class="subtitle" id="subtitle">
+      Enter your authorization code to continue.
+    </p>
+
+
+    <!-- ======================================================
+         AUTHORIZATION SCREEN
+         ====================================================== -->
+
+    <div id="lockScreen">
+
+      <input
+        id="setupCode"
+        type="password"
+        inputmode="text"
+        autocomplete="off"
+        autocapitalize="characters"
+        spellcheck="false"
+        placeholder="Authorization Code"
+      >
+
+      <button id="unlockBtn">
+        Continue
+      </button>
+
+      <div id="lockStatus" class="status"></div>
+
+    </div>
+
+
+    <!-- ======================================================
+         NOTIFICATION SETUP SCREEN
+         ====================================================== -->
+
+    <div id="notificationScreen" class="hidden">
+
+      <button id="enableBtn">
+        Enable Notifications
+      </button>
+
+      <div id="status" class="status"></div>
+
+    </div>
+
+
+    <!-- ======================================================
+         iPHONE INSTALL INSTRUCTIONS
+         ====================================================== -->
+
+    <div
+      id="installInstructions"
+      class="instructions hidden"
+    >
+      <strong>iPhone setup:</strong><br><br>
+
+      1. Open this page in Safari.<br>
+      2. Tap the Share button.<br>
+      3. Choose <strong>Add to Home Screen</strong>.<br>
+      4. Open the new <strong>Jodifl Alerts</strong> app.<br>
+      5. Enter your authorization code.<br>
+      6. Tap <strong>Enable Notifications</strong>.
+
+    </div>
+
+  </div>
+
+
+<script>
+
+  // ============================================================
+  // CONFIG
+  // ============================================================
+var PUSH_GATEWAY_URL =
+  'https://script.google.com/macros/s/AKfycbyPcd4PUq9NunX8TcJNvK-lye--nbShBz8Ks82h-s2PcSXnjrYErrK4_awuJc612eGeYg/exec';
+  // This is only stored on the manager's phone.
+  // It does NOT contain the authorization code.
+  var ENROLLMENT_STORAGE_KEY =
+    'jodiflWarehousePushEnrolled';
+
+
+  var savedSetupCode = '';
+  var appsScriptConfig = null;
+var ADMIN_URL_STORAGE_KEY =
+  'jodiflWarehouseAdminUrl';
+
+  // ============================================================
+  // DEVICE HELPERS
+  // ============================================================
+
+  function isIOS() {
+    return /iPhone|iPad|iPod/i.test(navigator.userAgent) ||
+      (
+        navigator.platform === 'MacIntel' &&
+        navigator.maxTouchPoints > 1
+      );
+  }
+
+
+  function isStandalone() {
+    return (
+      window.navigator.standalone === true ||
+      window.matchMedia(
+        '(display-mode: standalone)'
+      ).matches
+    );
+  }
+
+
+  // ============================================================
+  // CHECK WHETHER THIS PHONE IS ALREADY ENROLLED
+  // ============================================================
+
+  function isAlreadyEnrolled_() {
+    try {
+      return localStorage.getItem(
+        ENROLLMENT_STORAGE_KEY
+      ) === 'true';
+    } catch (e) {
+      return false;
+    }
+  }
+
+
+  function markAsEnrolled_() {
+    try {
+      localStorage.setItem(
+        ENROLLMENT_STORAGE_KEY,
+        'true'
+      );
+    } catch (e) {
+      console.warn(
+        'Could not save local enrollment state.'
+      );
+    }
+  }
+
+
+  // ============================================================
+  // BASE64 → UINT8
+  // ============================================================
+
+  function urlBase64ToUint8Array(base64String) {
+
+    var padding =
+      '='.repeat(
+        (4 - (base64String.length % 4)) % 4
+      );
+
+    var base64 =
+      (base64String + padding)
+        .replace(/-/g, '+')
+        .replace(/_/g, '/');
+
+    var rawData = atob(base64);
+
+    var outputArray =
+      new Uint8Array(rawData.length);
+
+    for (
+      var i = 0;
+      i < rawData.length;
+      ++i
+    ) {
+      outputArray[i] =
+        rawData.charCodeAt(i);
+    }
+
+    return outputArray;
+  }
+
+
+  // ============================================================
+  // JSONP CALL
+  // ============================================================
+
+  function callAppsScriptJsonp_(params) {
+
+    return new Promise(function(resolve, reject) {
+
+      var callbackName =
+        '__jodiflPushCallback_' +
+        Date.now() +
+        '_' +
+        Math.floor(
+          Math.random() * 100000
+        );
+
+      var script =
+        document.createElement('script');
+
+      var query =
+        new URLSearchParams(params);
+
+      query.set(
+        'callback',
+        callbackName
+      );
+
+      var finished = false;
+
+      function cleanup() {
+
+        if (finished) return;
+
+        finished = true;
+
+        try {
+          delete window[callbackName];
+        } catch (e) {}
+
+        if (script.parentNode) {
+          script.parentNode.removeChild(script);
+        }
+      }
+
+
+      var timeout =
+        setTimeout(function() {
+
+          cleanup();
+
+          reject(
+            new Error(
+              'Could not contact the notification server.'
+            )
+          );
+
+        }, 15000);
+
+
+      window[callbackName] =
+        function(result) {
+
+          clearTimeout(timeout);
+
+          cleanup();
+
+          resolve(result);
+        };
+
+
+      script.onerror =
+        function() {
+
+          clearTimeout(timeout);
+
+          cleanup();
+
+          reject(
+            new Error(
+              'Could not contact the notification server.'
+            )
+          );
+        };
+
+
+script.src =
+  PUSH_GATEWAY_URL +
+  '?' +
+  query.toString();
+
+      document.head.appendChild(script);
+
+    });
+  }
+
+
+  // ============================================================
+  // VERIFY AUTHORIZATION CODE
+  // ============================================================
+
+  async function verifySetupCode_() {
+
+    var code =
+      document
+        .getElementById('setupCode')
+        .value
+        .trim()
+        .toUpperCase();
+
+
+    var status =
+      document.getElementById('lockStatus');
+
+
+    var button =
+      document.getElementById('unlockBtn');
+
+
+    if (!code) {
+
+      status.className =
+        'status error';
+
+      status.textContent =
+        'Please enter the authorization code.';
+
+      return;
+    }
+
+
+    button.disabled = true;
+
+    status.className =
+      'status';
+
+    status.textContent =
+      'Verifying...';
+
+
+    try {
+
+      var result =
+        await callAppsScriptJsonp_({
+          action: 'webPushConfig',
+          code: code
+        });
+
+
+      if (
+        !result ||
+        !result.success ||
+        !result.vapidPublicKey
+      ) {
+
+        throw new Error(
+          'Invalid authorization code.'
+        );
+      }
+
+
+    // Keep code in memory only.
+      savedSetupCode = code;
+
+      appsScriptConfig = result;
+
+      if (!result.adminUrl) {
+        throw new Error(
+          'The notification server did not provide the Admin Dashboard URL.'
+        );
+      }
+
+      try {
+        localStorage.setItem(
+          ADMIN_URL_STORAGE_KEY,
+          result.adminUrl
+        );
+      } catch (e) {
+        throw new Error(
+          'Could not save the Admin Dashboard URL on this device.'
+        );
+      }
+
+      document
+        .getElementById('lockScreen')
+        .classList
+        .add('hidden');
+
+
+      document
+        .getElementById('notificationScreen')
+        .classList
+        .remove('hidden');
+
+
+      document
+        .getElementById('subtitle')
+        .textContent =
+          'This device is authorized for warehouse notifications.';
+
+
+      status.textContent = '';
+
+
+    } catch (error) {
+
+      console.error(error);
+
+      status.className =
+        'status error';
+
+      status.textContent =
+        error && error.message
+          ? error.message
+          : 'Authorization failed.';
+
+      button.disabled = false;
+    }
+
+  }
+
+
+  // ============================================================
+  // ENCODE PUSH SUBSCRIPTION
+  // ============================================================
+
+  function encodeSubscription_(subscription) {
+
+    var json =
+      JSON.stringify(subscription);
+
+    return btoa(
+      unescape(
+        encodeURIComponent(json)
+      )
+    );
+  }
+
+
+  // ============================================================
+  // REGISTER PUSH SUBSCRIPTION
+  // ============================================================
+
+  async function registerSubscriptionWithAppsScript_(
+    subscription
+  ) {
+
+    var encodedSubscription =
+      encodeSubscription_(subscription);
+
+
+    var result =
+      await callAppsScriptJsonp_({
+        action: 'registerPush',
+        code: savedSetupCode,
+        subscription: encodedSubscription
+      });
+
+
+    if (
+      !result ||
+      !result.success
+    ) {
+
+      throw new Error(
+        result && result.error
+          ? result.error
+          : 'Notification registration failed.'
+      );
+    }
+
+
+    return result;
+  }
+
+
+  // ============================================================
+  // ENABLE NOTIFICATIONS
+  // ============================================================
+
+  async function enableNotifications() {
+
+    var button =
+      document.getElementById('enableBtn');
+
+
+    var status =
+      document.getElementById('status');
+
+
+    button.disabled = true;
+
+    status.className =
+      'status';
+
+    status.textContent =
+      'Setting up notifications...';
+
+
+    try {
+
+      if (!('serviceWorker' in navigator)) {
+        throw new Error(
+          'This device does not support service workers.'
+        );
+      }
+
+
+      if (!('PushManager' in window)) {
+        throw new Error(
+          'This device does not support web push.'
+        );
+      }
+
+
+      if (
+        isIOS() &&
+        !isStandalone()
+      ) {
+
+        throw new Error(
+          'Please add this page to your Home Screen and open it as an app first.'
+        );
+      }
+
+
+      // --------------------------------------------------------
+      // Ask for notification permission
+      // --------------------------------------------------------
+
+      var permission =
+        await Notification.requestPermission();
+
+
+      if (permission !== 'granted') {
+
+        throw new Error(
+          'Notification permission was not granted.'
+        );
+      }
+
+
+      // --------------------------------------------------------
+      // Register service worker
+      // --------------------------------------------------------
+
+      var registration =
+        await navigator.serviceWorker.register(
+          './sw.js',
+          {
+            scope: './'
+          }
+        );
+
+
+      await navigator.serviceWorker.ready;
+
+
+      // --------------------------------------------------------
+      // Get existing subscription
+      // --------------------------------------------------------
+
+      var subscription =
+        await registration
+          .pushManager
+          .getSubscription();
+
+
+      // --------------------------------------------------------
+      // Create subscription if needed
+      // --------------------------------------------------------
+
+      if (!subscription) {
+
+        subscription =
+          await registration
+            .pushManager
+            .subscribe({
+
+              userVisibleOnly: true,
+
+              applicationServerKey:
+                urlBase64ToUint8Array(
+                  appsScriptConfig.vapidPublicKey
+                )
+            });
+      }
+
+
+      // --------------------------------------------------------
+      // Save subscription in Apps Script
+      // --------------------------------------------------------
+
+      await registerSubscriptionWithAppsScript_(
+        subscription
+      );
+
+
+      // --------------------------------------------------------
+      // Mark this phone as enrolled
+      // --------------------------------------------------------
+
+      markAsEnrolled_();
+
+
+      status.className =
+        'status success';
+
+      status.textContent =
+        'Notifications enabled. Opening Admin Dashboard...';
+
+
+      // --------------------------------------------------------
+      // Give the browser a moment to finish registration,
+      // then open the real warehouse Admin Dashboard.
+      // --------------------------------------------------------
+
+      setTimeout(function() {
+        openAdmin_();
+      }, 800);
+
+
+    } catch (error) {
+
+      console.error(error);
+
+      status.className =
+        'status error';
+
+      status.textContent =
+        error && error.message
+          ? error.message
+          : 'Notification setup failed.';
+
+      button.disabled = false;
+    }
+
+  }
+
+
+  // ============================================================
+  // OPEN ADMIN DASHBOARD
+  // ============================================================
+function openAdmin_() {
+  var adminUrl = '';
+
+  try {
+    adminUrl =
+      localStorage.getItem(
+        ADMIN_URL_STORAGE_KEY
+      ) || '';
+  } catch (e) {
+    adminUrl = '';
+  }
+
+  if (!adminUrl) {
+    console.error(
+      'No authorized Admin Dashboard URL is stored on this device.'
+    );
+    return;
+  }
+
+  window.location.href = adminUrl;
+}
+  // ============================================================
+  // INITIALIZE
+  // ============================================================
+
+  document.addEventListener(
+    'DOMContentLoaded',
+    function() {
+
+      // --------------------------------------------------------
+      // Already enrolled?
+      //
+      // If this is the manager's Home Screen app after setup,
+      // immediately take them to the Admin Dashboard.
+      // --------------------------------------------------------
+
+      if (isAlreadyEnrolled_()) {
+
+        openAdmin_();
+
+        return;
+      }
+
+
+      // --------------------------------------------------------
+      // Authorization button
+      // --------------------------------------------------------
+
+      document
+        .getElementById('unlockBtn')
+        .addEventListener(
+          'click',
+          verifySetupCode_
+        );
+
+
+      // --------------------------------------------------------
+      // Enter key in authorization field
+      // --------------------------------------------------------
+
+      document
+        .getElementById('setupCode')
+        .addEventListener(
+          'keydown',
+          function(event) {
+
+            if (event.key === 'Enter') {
+              verifySetupCode_();
+            }
+
+          }
+        );
+
+
+      // --------------------------------------------------------
+      // Notification button
+      // --------------------------------------------------------
+
+      document
+        .getElementById('enableBtn')
+        .addEventListener(
+          'click',
+          enableNotifications
+        );
+
+
+      // --------------------------------------------------------
+      // iPhone install instructions
+      // --------------------------------------------------------
+
+      if (
+        isIOS() &&
+        !isStandalone()
+      ) {
+
+        document
+          .getElementById('installInstructions')
+          .classList
+          .remove('hidden');
+
+      }
+
+    }
+  );
+
+</script>
+
+</body>
+</html>
+```
