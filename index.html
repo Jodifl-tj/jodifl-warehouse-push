@@ -792,94 +792,60 @@ function openAdmin_() {
     console.error(
       'No authorized Admin Dashboard URL is stored on this device.'
     );
-    return;
+    return false;
   }
 
   window.location.href = adminUrl;
+  return true;
 }
   // ============================================================
   // INITIALIZE
   // ============================================================
+document.addEventListener(
+  'DOMContentLoaded',
+  function() {
 
-  document.addEventListener(
-    'DOMContentLoaded',
-    function() {
-
-      // --------------------------------------------------------
-      // Already enrolled?
-      //
-      // If this is the manager's Home Screen app after setup,
-      // immediately take them to the Admin Dashboard.
-      // --------------------------------------------------------
-
-      if (isAlreadyEnrolled_()) {
-
-        openAdmin_();
-
+    // Already enrolled? Go straight to the Admin Dashboard.
+    // If the flag exists but the URL is gone, clear the stale flag
+    // and fall through to the authorization screen.
+    if (isAlreadyEnrolled_()) {
+      if (openAdmin_()) {
         return;
       }
 
-
-      // --------------------------------------------------------
-      // Authorization button
-      // --------------------------------------------------------
-
-      document
-        .getElementById('unlockBtn')
-        .addEventListener(
-          'click',
-          verifySetupCode_
-        );
-
-
-      // --------------------------------------------------------
-      // Enter key in authorization field
-      // --------------------------------------------------------
-
-      document
-        .getElementById('setupCode')
-        .addEventListener(
-          'keydown',
-          function(event) {
-
-            if (event.key === 'Enter') {
-              verifySetupCode_();
-            }
-
-          }
-        );
-
-
-      // --------------------------------------------------------
-      // Notification button
-      // --------------------------------------------------------
-
-      document
-        .getElementById('enableBtn')
-        .addEventListener(
-          'click',
-          enableNotifications
-        );
-
-
-      // --------------------------------------------------------
-      // iPhone install instructions
-      // --------------------------------------------------------
-
-      if (
-        isIOS() &&
-        !isStandalone()
-      ) {
-
-        document
-          .getElementById('installInstructions')
-          .classList
-          .remove('hidden');
-
-      }
-
+      try {
+        localStorage.removeItem(ENROLLMENT_STORAGE_KEY);
+      } catch (e) {}
     }
-  );
+
+    document
+      .getElementById('unlockBtn')
+      .addEventListener('click', verifySetupCode_);
+
+    document
+      .getElementById('setupCode')
+      .addEventListener(
+        'keydown',
+        function(event) {
+          if (event.key === 'Enter') {
+            verifySetupCode_();
+          }
+        }
+      );
+
+    document
+      .getElementById('enableBtn')
+      .addEventListener('click', enableNotifications);
+
+    if (isIOS() && !isStandalone()) {
+      document
+        .getElementById('installInstructions')
+        .classList
+        .remove('hidden');
+    }
+
+  }
+);
 
 </script>
 
